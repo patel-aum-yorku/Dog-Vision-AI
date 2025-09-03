@@ -1,3 +1,5 @@
 dog-breed-identification
 tf_env
 wsl_tf_env
+venv
+__pycache__
