@@ -7,6 +7,7 @@ A FastAPI-based backend service for dog breed classification using a trained Ten
 - **FastAPI Framework**: High-performance, easy-to-use web framework with automatic API documentation
 - **Dog Breed Classification**: Predicts dog breeds from uploaded images using a trained MobileNetV2 model
 - **Image Processing**: Handles JPEG and PNG image formats with preprocessing pipeline
+- **Rate Limiting**: API abuse protection with configurable rate limits on prediction endpoint
 - **Error Handling**: Comprehensive error handling for invalid images, file size limits, and model failures
 - **Health Monitoring**: Health check endpoint to verify service and model status
 
@@ -14,6 +15,8 @@ A FastAPI-based backend service for dog breed classification using a trained Ten
 
 ### 1. POST /predict
 Main prediction endpoint that accepts image uploads and returns breed predictions.
+
+**Rate Limiting:** 10 requests per minute per IP address (configurable via environment variables)
 
 **Request:**
 - Method: `POST`
@@ -27,6 +30,13 @@ Main prediction endpoint that accepts image uploads and returns breed prediction
   "predicted_breed": "golden_retriever",
   "confidence": 0.9234,
   "message": "Prediction successful"
+}
+```
+
+**Rate Limit Exceeded (429):**
+```json
+{
+  "error": "Rate limit exceeded: 10 per 1 minute"
 }
 ```
 
@@ -125,10 +135,29 @@ with open("dog_image.jpg", "rb") as f:
 - **Number of Classes**: 120 dog breeds
 - **Preprocessing**: Images are automatically resized to 224x224, converted to RGB, and normalized
 
+## Rate Limiting
+
+The `/predict` endpoint is protected by rate limiting to prevent abuse:
+
+- **Default Limit**: 10 requests per minute per IP address
+- **HTTP Status**: Returns 429 (Too Many Requests) when limit is exceeded
+- **Configuration**: Rate limits can be customized using environment variables:
+  - `RATE_LIMIT_REQUESTS`: Number of requests allowed (default: 10)
+  - `RATE_LIMIT_PERIOD`: Time period for the limit (default: minute)
+
+**Example Configuration:**
+```bash
+export RATE_LIMIT_REQUESTS=20
+export RATE_LIMIT_PERIOD=minute
+```
+
+Other endpoints (`/health`, `/`, `/docs`) are not rate limited.
+
 ## Error Handling
 
 The service handles various error conditions:
 
+- **Rate limit exceeded**: Returns 429 error when too many requests are made
 - **Invalid file format**: Returns 400 error for unsupported image formats
 - **File too large**: Returns 400 error for files exceeding 10MB
 - **Corrupted images**: Returns 400 error for invalid/corrupted image files

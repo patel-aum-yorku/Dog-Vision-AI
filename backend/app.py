@@ -6,9 +6,12 @@ This service provides endpoints for dog breed prediction using a trained TensorF
 
 import os
 import io
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse
 import uvicorn
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from model_service import ModelService
 from image_processor import (
@@ -25,6 +28,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # Global model service instance
 model_service = None
 
@@ -36,6 +44,11 @@ SUPPORTED_FORMATS = {"image/jpeg", "image/jpg", "image/png"}
 
 # Maximum file size (10MB)
 MAX_FILE_SIZE = 10 * 1024 * 1024
+
+# Rate limiting configuration
+RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", "10"))
+RATE_LIMIT_PERIOD = os.getenv("RATE_LIMIT_PERIOD", "minute")
+RATE_LIMIT_STRING = f"{RATE_LIMIT_REQUESTS}/{RATE_LIMIT_PERIOD}"
 
 
 @app.on_event("startup")
@@ -84,15 +97,26 @@ async def health_check():
 
 
 @app.post("/predict")
-async def predict_dog_breed(file: UploadFile = File(...)):
+@limiter.limit(RATE_LIMIT_STRING)
+async def predict_dog_breed(request: Request, file: UploadFile = File(...)):
     """
     Predict dog breed from uploaded image.
     
+    Rate limited to prevent abuse (default: 10 requests per minute per IP address).
+    Rate limits can be configured via RATE_LIMIT_REQUESTS and RATE_LIMIT_PERIOD environment variables.
+    
     Args:
+        request: FastAPI request object (for rate limiting)
         file: Uploaded image file (JPEG or PNG)
         
     Returns:
         dict: Prediction result with breed name and confidence score
+        
+    Raises:
+        HTTPException: 429 if rate limit is exceeded
+        HTTPException: 400 for invalid file format or size
+        HTTPException: 503 if model service is unavailable
+        HTTPException: 500 for internal server errors
     """
     # Validate model service
     if model_service is None or not model_service.is_loaded:
