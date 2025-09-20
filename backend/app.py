@@ -30,7 +30,7 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://your-frontend-domain.com"],
+    allow_origins=["http://localhost:3000", "https://dog-vision-web-app-frontend-k1yv.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
