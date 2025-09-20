@@ -2,6 +2,8 @@
 
 This project builds a multi-class image classifier to identify the breed of a dog from a given image, using **TensorFlow 2.x** and **TensorFlow Hub**.
 
+Demo - https://dog-vision-web-app-frontend-k1yv.vercel.app/
+
 ---
 
 ## 📚 Problem Statement
